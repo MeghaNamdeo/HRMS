@@ -121,7 +121,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header */}
+      {/* Background Effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/10 rounded-full blur-3xl"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-secondary/10 rounded-full blur-3xl"></div>
@@ -130,6 +130,7 @@ export default function Login() {
       <div className="relative">
         <div className="flex items-center justify-center min-h-screen px-4 py-12">
           <div className="w-full max-w-6xl">
+            {/* Header */}
             <div className="text-center mb-12">
               <div className="flex items-center justify-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
@@ -141,6 +142,19 @@ export default function Login() {
                 Enterprise HRMS Platform
               </p>
             </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="max-w-2xl mx-auto mb-6 p-4 border border-red-500 bg-red-500/10 rounded-lg flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-red-200">{error}</p>
+                  <p className="text-sm text-red-300 mt-1">
+                    Please check your credentials and try again
+                  </p>
+                </div>
+              </div>
+            )}
 
             <Tabs defaultValue="quick" className="w-full">
               <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-2 mb-8">
@@ -158,13 +172,18 @@ export default function Login() {
                     const Icon = account.icon;
                     return (
                       <button
-                        key={account.role}
+                        key={account.email}
                         onClick={() => quickLogin(account)}
-                        className="group relative overflow-hidden rounded-lg border border-slate-700 bg-slate-800/50 p-6 transition-all hover:border-primary hover:bg-slate-800/80 hover:shadow-lg hover:shadow-primary/20"
+                        disabled={isLoading}
+                        className="group relative overflow-hidden rounded-lg border border-slate-700 bg-slate-800/50 p-6 transition-all hover:border-primary hover:bg-slate-800/80 hover:shadow-lg hover:shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <div className="flex flex-col items-center gap-3">
                           <div className="rounded-lg bg-primary/20 p-3 group-hover:bg-primary/30 transition-colors">
-                            <Icon className="w-6 h-6 text-primary" />
+                            {isLoading ? (
+                              <Loader className="w-6 h-6 text-primary animate-spin" />
+                            ) : (
+                              <Icon className="w-6 h-6 text-primary" />
+                            )}
                           </div>
                           <div className="text-center">
                             <h3 className="font-semibold text-white">
@@ -187,7 +206,7 @@ export default function Login() {
                   <CardHeader>
                     <CardTitle className="text-white">Sign In</CardTitle>
                     <CardDescription>
-                      Enter your credentials and select your role
+                      Enter your email and password to sign in
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -198,10 +217,14 @@ export default function Login() {
                       <Input
                         id="email"
                         type="email"
-                        placeholder="john@company.com"
+                        placeholder="john.doe@company.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter") handleLogin();
+                        }}
+                        disabled={isLoading}
+                        className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 disabled:opacity-50"
                       />
                     </div>
 
@@ -214,43 +237,34 @@ export default function Login() {
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter") handleLogin();
+                        }}
+                        disabled={isLoading}
+                        className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 disabled:opacity-50"
                       />
-                    </div>
-
-                    <div className="space-y-3">
-                      <Label className="text-slate-300 block">Select Role</Label>
-                      <div className="space-y-2">
-                        {DEMO_ACCOUNTS.map((account) => (
-                          <button
-                            key={account.role}
-                            onClick={() => setSelectedRole(account.role)}
-                            className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
-                              selectedRole === account.role
-                                ? "border-primary bg-primary/20 text-white"
-                                : "border-slate-600 bg-slate-700/50 text-slate-300 hover:border-slate-500"
-                            }`}
-                          >
-                            <div className="font-medium">{account.name}</div>
-                            <div className="text-sm opacity-75">
-                              {account.description}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
                     </div>
 
                     <Button
                       onClick={handleLogin}
+                      disabled={!email || !password || isLoading}
                       className="w-full bg-primary hover:bg-primary/90 text-white"
-                      disabled={!email || !selectedRole}
                     >
-                      <LogIn className="w-4 h-4 mr-2" />
-                      Sign In
+                      {isLoading ? (
+                        <>
+                          <Loader className="w-4 h-4 mr-2 animate-spin" />
+                          Signing in...
+                        </>
+                      ) : (
+                        <>
+                          <LogIn className="w-4 h-4 mr-2" />
+                          Sign In
+                        </>
+                      )}
                     </Button>
 
                     <p className="text-xs text-slate-400 text-center">
-                      Use any email and password: demo
+                      Use any demo email • Password: demo
                     </p>
                   </CardContent>
                 </Card>
