@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth, type UserRole } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,65 +13,110 @@ import {
   BarChart3,
   Lock,
   LogIn,
+  AlertCircle,
+  Loader,
 } from "lucide-react";
 
 const DEMO_ACCOUNTS = [
   {
-    role: "employee" as UserRole,
     email: "john.doe@company.com",
     name: "John Doe",
     icon: Users,
     description: "View profile, leave, attendance, payslip",
+    role: "Employee",
   },
   {
-    role: "hr_admin" as UserRole,
     email: "hr.admin@company.com",
     name: "HR Admin",
     icon: Briefcase,
     description: "Employee lifecycle, recruitment, policies",
+    role: "HR Admin",
   },
   {
-    role: "finance_admin" as UserRole,
     email: "finance.admin@company.com",
     name: "Finance Admin",
     icon: DollarSign,
     description: "Payroll, salary, tax, financial reports",
+    role: "Finance Admin",
   },
   {
-    role: "manager" as UserRole,
     email: "manager@company.com",
     name: "Manager",
     icon: BarChart3,
     description: "Team management, approvals, reviews",
+    role: "Manager",
   },
   {
-    role: "super_admin" as UserRole,
     email: "super.admin@company.com",
     name: "Super Admin",
     icon: Lock,
     description: "System configuration, audit logs, integrations",
+    role: "Super Admin",
   },
 ];
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isLoading, error, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("demo");
-  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+  const [isCustomLogin, setIsCustomLogin] = useState(false);
 
-  const handleLogin = () => {
-    if (!email || !selectedRole) {
-      alert("Please select a role and enter an email");
+  // Redirect if already logged in
+  if (user && !isLoading) {
+    const roleMap: Record<string, string> = {
+      "ROLE_EMPLOYEE": "employee",
+      "ROLE_HR_ADMIN": "hr_admin",
+      "ROLE_FINANCE_ADMIN": "finance_admin",
+      "ROLE_MANAGER": "manager",
+      "ROLE_SUPER_ADMIN": "super_admin",
+    };
+    const firstRole = user.roles[0];
+    const mappedRole = roleMap[firstRole] || "employee";
+    navigate(`/portal/${mappedRole}`, { replace: true });
+    return null;
+  }
+
+  const handleLogin = async () => {
+    if (!email || !password) {
       return;
     }
-    login(email, password, selectedRole);
-    navigate(`/portal/${selectedRole}`);
+    try {
+      await login(email, password);
+      const roleMap: Record<string, string> = {
+        "ROLE_EMPLOYEE": "employee",
+        "ROLE_HR_ADMIN": "hr_admin",
+        "ROLE_FINANCE_ADMIN": "finance_admin",
+        "ROLE_MANAGER": "manager",
+        "ROLE_SUPER_ADMIN": "super_admin",
+      };
+      // Get the first role from the logged-in user
+      if (user) {
+        const mappedRole = roleMap[user.roles[0]] || "employee";
+        navigate(`/portal/${mappedRole}`);
+      }
+    } catch (err) {
+      console.error("Login failed:", err);
+    }
   };
 
-  const quickLogin = (account: (typeof DEMO_ACCOUNTS)[0]) => {
-    login(account.email, "demo", account.role);
-    navigate(`/portal/${account.role}`);
+  const quickLogin = async (account: (typeof DEMO_ACCOUNTS)[0]) => {
+    try {
+      await login(account.email, "demo");
+      const roleMap: Record<string, string> = {
+        "ROLE_EMPLOYEE": "employee",
+        "ROLE_HR_ADMIN": "hr_admin",
+        "ROLE_FINANCE_ADMIN": "finance_admin",
+        "ROLE_MANAGER": "manager",
+        "ROLE_SUPER_ADMIN": "super_admin",
+      };
+      if (user) {
+        const mappedRole = roleMap[user.roles[0]] || "employee";
+        navigate(`/portal/${mappedRole}`);
+      }
+    } catch (err) {
+      console.error("Quick login failed:", err);
+    }
   };
 
   return (
