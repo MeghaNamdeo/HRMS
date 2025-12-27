@@ -1,72 +1,161 @@
-import React, { createContext, useState, useContext, ReactNode } from "react";
+import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
 
 export type UserRole =
-  | "employee"
-  | "hr_admin"
-  | "finance_admin"
-  | "manager"
-  | "super_admin";
+  | "ROLE_EMPLOYEE"
+  | "ROLE_HR_ADMIN"
+  | "ROLE_FINANCE_ADMIN"
+  | "ROLE_MANAGER"
+  | "ROLE_SUPER_ADMIN";
 
 export interface User {
   id: string;
   email: string;
   name: string;
   roles: UserRole[];
-  department?: string;
-  employeeId?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string, selectedRole?: UserRole) => void;
-  logout: () => void;
-  switchRole: (role: UserRole) => void;
-  currentRole: UserRole | null;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  getCurrentUser: () => Promise<void>;
+  error: string | null;
+  accessToken: string | null;
+  refreshToken: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const API_BASE = typeof window !== "undefined" ? window.location.origin : "";
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = useState<string | null>(null);
 
-  const login = (email: string, password: string, selectedRole?: UserRole) => {
-    // Mock login - in production, this would validate against backend
-    const mockUser: User = {
-      id: "user-123",
-      email,
-      name: email.split("@")[0],
-      roles: selectedRole ? [selectedRole] : ["employee"],
-      department: "Engineering",
-      employeeId: "EMP-001",
-    };
+  // Initialize auth state from localStorage
+  useEffect(() => {
+    const storedToken = localStorage.getItem("accessToken");
+    const storedRefreshToken = localStorage.getItem("refreshToken");
+    const storedUser = localStorage.getItem("user");
 
-    setUser(mockUser);
-    if (selectedRole) {
-      setCurrentRole(selectedRole);
-    } else {
-      setCurrentRole(mockUser.roles[0]);
+    if (storedToken) {
+      setAccessToken(storedToken);
+    }
+    if (storedRefreshToken) {
+      setRefreshToken(storedRefreshToken);
+    }
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Login failed");
+      }
+
+      const { accessToken: newAccessToken, refreshToken: newRefreshToken, user: userData } = data.data;
+
+      // Store tokens and user
+      localStorage.setItem("accessToken", newAccessToken);
+      localStorage.setItem("refreshToken", newRefreshToken);
+      localStorage.setItem("user", JSON.stringify(userData));
+
+      setAccessToken(newAccessToken);
+      setRefreshToken(newRefreshToken);
+      setUser(userData);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Login failed";
+      setError(errorMsg);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      setIsLoading(true);
+
+      if (refreshToken && accessToken) {
+        await fetch(`${API_BASE}/api/auth/logout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ refreshToken }),
+        });
+      }
+    } catch (err) {
+      console.error("Logout error:", err);
+    } finally {
+      // Clear local state regardless of API call success
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("user");
+      setAccessToken(null);
+      setRefreshToken(null);
+      setUser(null);
+      setError(null);
+      setIsLoading(false);
+    }
+  };
+
+  const getCurrentUser = async () => {
+    if (!accessToken) {
+      return;
     }
 
-    // Store in localStorage
-    localStorage.setItem("user", JSON.stringify(mockUser));
-    localStorage.setItem("currentRole", selectedRole || mockUser.roles[0]);
-  };
+    try {
+      setIsLoading(true);
+      const response = await fetch(`${API_BASE}/api/auth/me`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
 
-  const logout = () => {
-    setUser(null);
-    setCurrentRole(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("currentRole");
-  };
+      const data = await response.json();
 
-  const switchRole = (role: UserRole) => {
-    if (user?.roles.includes(role)) {
-      setCurrentRole(role);
-      localStorage.setItem("currentRole", role);
+      if (!response.ok || !data.success) {
+        // Token might be expired
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("user");
+        setAccessToken(null);
+        setRefreshToken(null);
+        setUser(null);
+        throw new Error("Session expired");
+      }
+
+      setUser(data.data.user);
+      localStorage.setItem("user", JSON.stringify(data.data.user));
+    } catch (err) {
+      console.error("Get current user error:", err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -74,11 +163,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: !!user,
+        isAuthenticated: !!user && !!accessToken,
+        isLoading,
         login,
         logout,
-        switchRole,
-        currentRole,
+        getCurrentUser,
+        error,
+        accessToken,
+        refreshToken,
       }}
     >
       {children}
