@@ -57,6 +57,16 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // HRMS Enterprise Colors
+        hrms: {
+          primary: "#1e3a8a", // Deep Blue
+          secondary: "#0891b2", // Cyan
+          accent: "#7c3aed", // Purple
+          success: "#059669", // Green
+          warning: "#d97706", // Amber
+          danger: "#dc2626", // Red
+          dark: "#0f172a", // Slate Dark
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -85,7 +95,15 @@ export default {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },
+      typography: {
+        DEFAULT: {
+          css: {
+            "code::before": false,
+            "code::after": false,
+          },
+        },
+      },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
 } satisfies Config;
