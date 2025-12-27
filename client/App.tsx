@@ -1,7 +1,4 @@
-import "./global.css";
-
 import { Toaster } from "@/components/ui/toaster";
-import { createRoot } from "react-dom/client";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -27,80 +24,80 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const AppContent = () => (
-  <BrowserRouter>
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/login" element={<Login />} />
+const AppRoutes = () => (
+  <Routes>
+    <Route path="/" element={<Home />} />
+    <Route path="/login" element={<Login />} />
 
-      {/* Portal Routes - Protected */}
-      <Route
-        path="/portal/employee"
-        element={
-          <ProtectedRoute>
-            <EmployeeDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/portal/hr_admin"
-        element={
-          <ProtectedRoute>
-            <HRAdminDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/portal/finance_admin"
-        element={
-          <ProtectedRoute>
-            <PlaceholderPortal />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/portal/manager"
-        element={
-          <ProtectedRoute>
-            <PlaceholderPortal />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/portal/super_admin"
-        element={
-          <ProtectedRoute>
-            <PlaceholderPortal />
-          </ProtectedRoute>
-        }
-      />
+    {/* Portal Routes - Protected */}
+    <Route
+      path="/portal/employee"
+      element={
+        <ProtectedRoute>
+          <EmployeeDashboard />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/portal/hr_admin"
+      element={
+        <ProtectedRoute>
+          <HRAdminDashboard />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/portal/finance_admin"
+      element={
+        <ProtectedRoute>
+          <PlaceholderPortal />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/portal/manager"
+      element={
+        <ProtectedRoute>
+          <PlaceholderPortal />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/portal/super_admin"
+      element={
+        <ProtectedRoute>
+          <PlaceholderPortal />
+        </ProtectedRoute>
+      }
+    />
 
-      {/* Catch-all placeholder routes for portal sub-pages */}
-      <Route
-        path="/portal/:role/:page"
-        element={
-          <ProtectedRoute>
-            <PlaceholderPortal />
-          </ProtectedRoute>
-        }
-      />
+    {/* Catch-all placeholder routes for portal sub-pages */}
+    <Route
+      path="/portal/:role/:page"
+      element={
+        <ProtectedRoute>
+          <PlaceholderPortal />
+        </ProtectedRoute>
+      }
+    />
 
-      {/* 404 */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
-  </BrowserRouter>
+    {/* 404 */}
+    <Route path="*" element={<NotFound />} />
+  </Routes>
 );
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <AppContent />
+        <BrowserRouter>
+          <Toaster />
+          <Sonner />
+          <AppRoutes />
+        </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
 
-createRoot(document.getElementById("root")!).render(<App />);
+export default App;
