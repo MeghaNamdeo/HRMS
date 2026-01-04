@@ -1,0 +1,214 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Core Identity & Organization
+// -----------------------------------------------------------------------------
+
+model User {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  passwordHash String
+  name         String?
+  role         UserRole    @default(EMPLOYEE)
+  orgId        String
+  
+  // Relations
+  employee     Employee?
+  
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  
+  @@index([orgId])
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  HR_ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+model Employee {
+  id             String      @id @default(uuid())
+  code           String      // Emp Code like EMP001
+  
+  // Relations
+  userId         String      @unique
+  user           User        @relation(fields: [userId], references: [id])
+  
+  // Normalized Data
+  profile        EmployeeProfile?
+  job            EmployeeJob?
+  bank           EmployeeBank?
+  documents      EmployeeDocument[]
+  
+  attendanceLogs AttendanceLog[]
+  leaves         LeaveRequest[]
+  payslips       Payslip[]
+  
+  orgId          String
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@unique([orgId, code])
+}
+
+model EmployeeProfile {
+  id           String    @id @default(uuid())
+  employeeId   String    @unique
+  employee     Employee  @relation(fields: [employeeId], references: [id])
+  
+  mobile       String?
+  address      String?
+  dob          DateTime?
+  gender       String?
+  nationality  String?
+  
+  emergencyContactName  String?
+  emergencyContactPhone String?
+}
+
+model EmployeeJob {
+  id              String    @id @default(uuid())
+  employeeId      String    @unique
+  employee        Employee  @relation(fields: [employeeId], references: [id])
+  
+  department      String?
+  designation     String?
+  grade           String?
+  managerId       String?   // Self-referencing FK logic handled in app
+  employmentType  String?   // FULL_TIME, CONTRACT
+  joiningDate     DateTime
+  confirmationDate DateTime?
+}
+
+model EmployeeBank {
+  id             String    @id @default(uuid())
+  employeeId     String    @unique
+  employee       Employee  @relation(fields: [employeeId], references: [id])
+  
+  accountName    String
+  accountNumber  String
+  bankName       String
+  ifscCode       String    // or SWIFT
+  taxId          String?   // PAN/SSN (Encrypt in app level)
+}
+
+model EmployeeDocument {
+  id           String    @id @default(uuid())
+  employeeId   String
+  employee     Employee  @relation(fields: [employeeId], references: [id])
+  
+  type         String    // RESUME, CONTRACT, ID_PROOF
+  fileUrl      String
+  uploadedAt   DateTime  @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// Modules: Attendance, Leave, Payroll
+// -----------------------------------------------------------------------------
+
+model AttendanceLog {
+  id           String      @id @default(uuid())
+  checkIn      DateTime
+  checkOut     DateTime?
+  durationHours Float?
+  status       AttendanceStatus @default(PRESENT)
+  
+  employeeId   String
+  employee     Employee    @relation(fields: [employeeId], references: [id])
+  
+  orgId        String
+  date         DateTime    @db.Date // Store purely as date for querying
+  
+  locationData Json?       // Lat, Long, Device info
+  regularizationStatus String? // PENDING, APPROVED, REJECTED
+  
+  @@index([orgId, date])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  ON_LEAVE
+}
+
+model LeaveRequest {
+  id           String      @id @default(uuid())
+  startDate    DateTime
+  endDate      DateTime
+  daysCount    Float
+  reason       String?
+  status       LeaveStatus @default(PENDING)
+  type         LeaveType   @default(CL)
+  
+  employeeId   String
+  employee     Employee    @relation(fields: [employeeId], references: [id])
+  
+  orgId        String
+  
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LeaveType {
+  CL // Casual Leave
+  SL // Sick Leave
+  PL // Privilege Leave
+  WFH
+}
+
+model Payslip {
+  id           String      @id @default(uuid())
+  monthYear    String      // e.g. "10-2025"
+  basicSalary  Float
+  allowances   Float
+  deductions   Float
+  netPay       Float
+  
+  employeeId   String
+  employee     Employee    @relation(fields: [employeeId], references: [id])
+  
+  orgId        String
+  generatedAt  DateTime    @default(now())
+  
+  @@unique([employeeId, monthYear])
+}
+
+// -----------------------------------------------------------------------------
+// Security & Auditing
+// -----------------------------------------------------------------------------
+
+model AuditLog {
+  id           String      @id @default(uuid())
+  action       String      // e.g., "LOGIN", "CREATE_EMPLOYEE"
+  resource     String      // e.g., "User", "LeaveRequest"
+  resourceId   String?     // ID of the affected resource
+  diff         Json?       // JSON storing { before, after } changes
+  
+  actorId      String      // User ID who performed the action
+  orgId        String
+  
+  ipAddress    String?
+  userAgent    String?
+  
+  timestamp    DateTime    @default(now())
+  
+  @@index([orgId, timestamp])
+  @@index([actorId])
+}
